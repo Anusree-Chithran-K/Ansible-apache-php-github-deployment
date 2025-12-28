@@ -1,0 +1,64 @@
+
+---
+- name: "Deploying PhP Application From Github"
+  hosts: 
+    - amazon
+  become: true
+  vars_files: 
+    - variables.yml
+  tasks:
+  
+    - name: "Installing packages"
+      yum:
+        name: "{{ packages }}"
+        state: present
+    - name: "Creating httpd.conf from template"
+      template: 
+        src: "./httpd.conf.tmpl"
+        dest: "/etc/httpd/conf/httpd.conf"
+      register: config_status
+    - name: "Creating virtualhost configuration file from template"
+      template: 
+        src: ./virtualhost.conf.tmpl
+        dest: "/etc/httpd/conf.d/{{ website_hostname }}.conf"
+      register: vhost_status
+    - name: "Creating documentroot /var/www/html/{{ website_documentroot }}"
+      file:
+        path: "/var/www/html/{{ website_documentroot }}"
+        state: directory
+        owner: "{{ httpd_owner }}"
+        group: "{{ httpd_group }}"
+    - name: "Creating test pages"
+      copy:
+        src: "{{ item }}"
+        dest: "/var/www/html/{{ website_documentroot }}"
+        owner: "{{ httpd_owner }}"
+        group: "{{ httpd_group }}"
+      loop: 
+        - test.php
+        - test.html
+    - name: "Cloning github repository {{ github_repo }} "
+      git:
+        repo: "{{ github_repo }}"
+        dest: "{{ github_clone_directory }}"
+      register: clone_status
+    - name: "Copying website files to /var/www/html/{{ website_documentroot }}"
+      copy:
+        src: "{{ github_clone_directory }}"
+        dest: "/var/www/html/{{ website_documentroot }}"
+        owner: "{{ httpd_owner }}"
+        group: "{{ httpd_group }}"
+        remote_src: true
+    - name: "Restarting/Enabling Service - httpd"
+      when: config_status.changed or vhost_status.changed
+      service:
+         name: "httpd"
+         state: restarted
+         enabled: true
+    - name: "Restarting/Enabling Service - php"
+      when: clone_status.changed
+      service: 
+        name: "php-fpm"
+        state: restarted
+        enabled: true
+     
