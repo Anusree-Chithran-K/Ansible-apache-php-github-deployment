@@ -17,7 +17,7 @@
 - Uses Jinja2 templates for configuration
 
 ## How to run
-ansible-playbook -i hosts playbook.yaml
+ansible-playbook -i hosts playbook.yml
 
 ## Security Notes
 - Passwords are placeholders
